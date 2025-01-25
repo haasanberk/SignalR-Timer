@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\timer and web socket.props" />
+</Project>

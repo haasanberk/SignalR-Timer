@@ -1,0 +1,30 @@
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\appsettings.Development.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\appsettings.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.staticwebassets.runtime.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.exe
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.deps.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.runtimeconfig.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.dll
+C:\Users\HBK\Desktop\Projects\timer and web socket\bin\Debug\net8.0\timer and web socket.pdb
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.AssemblyInfoInputs.cache
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.AssemblyInfo.cs
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.csproj.CoreCompileInputs.cache
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.RazorAssemblyInfo.cache
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.RazorAssemblyInfo.cs
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets.build.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets.development.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets\msbuild.timer and web socket.Microsoft.AspNetCore.StaticWebAssets.props
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets\msbuild.build.timer and web socket.props
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.timer and web socket.props
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.timer and web socket.props
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\staticwebassets.pack.json
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\scopedcss\Pages\Shared\_Layout.cshtml.rz.scp.css
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\scopedcss\bundle\timer and web socket.styles.css
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\scopedcss\projectbundle\timer and web socket.bundle.scp.css
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.dll
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\refint\timer and web socket.dll
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.pdb
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\timer and web socket.genruntimeconfig.cache
+C:\Users\HBK\Desktop\Projects\timer and web socket\obj\Debug\net8.0\ref\timer and web socket.dll

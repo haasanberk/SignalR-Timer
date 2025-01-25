@@ -1,0 +1,77 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Timer";
+}
+
+<style>
+    #timer {
+        font-size: 48px;
+        margin: 20px;
+    }
+    input, button {
+        margin: 10px;
+        padding: 8px;
+        font-size: 16px;
+    }
+    #randomName {
+        font-size: 24px;
+        color: #007bff;
+        margin: 20px;
+    }
+    .connection-status {
+        padding: 8px;
+        border-radius: 4px;
+        margin: 10px 0;
+        text-align: center;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+
+    .connection-status.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .connection-status.warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .connection-status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>
+
+<div class="container text-center">
+    @if (Model.EnableSignalR)
+    {
+        <div id="connectionStatus" class="connection-status">Connecting...</div>
+        <div id="randomName">Waiting for name...</div>
+    }
+    <div id="timer">@Model.InitialTime</div>
+    <input type="number" id="seconds" min="1" max="999" value="@Model.InitialTime">
+    <button id="startBtn">Start Timer</button>
+    <button id="stopBtn">Stop Timer</button>
+    <button id="resumeBtn">Resume Timer</button>
+</div>
+
+@section Scripts {
+    @if (Model.EnableSignalR)
+    {
+        <script src=@("https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js")></script>
+        <script src="~/js/signalRService.js"></script>
+    }
+    <script src="~/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const config = {
+                enableSignalR: @Json.Serialize(Model.EnableSignalR),
+                initialTime: @Model.InitialTime
+            };
+
+            initializeApp(config);
+        });
+    </script>
+}
