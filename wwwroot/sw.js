@@ -55,10 +55,17 @@ function notifyClients(type) {
 }
 
 // Ensure the service worker stays active
-self.addEventListener('install', function(event) {
-    event.waitUntil(self.skipWaiting());
+self.addEventListener('install', event => {
+    console.log('Service Worker installing.');
+    // Perform install steps
 });
 
-self.addEventListener('activate', function(event) {
-    event.waitUntil(self.clients.claim());
+self.addEventListener('activate', event => {
+    console.log('Service Worker activating.');
+    // Perform activate steps
+});
+
+self.addEventListener('fetch', event => {
+    console.log('Fetching:', event.request.url);
+    // You can add caching logic here
 }); 

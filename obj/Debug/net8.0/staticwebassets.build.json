@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "SBwuCuZFVwxp8LRDm9ExE3n2XL2c6lChsCqsIJXRGPU=",
+  "Hash": "3IMTfK31hA1/rAz/CNO3lcQK7AjWiXgMUv6tRGeGA0E=",
   "Source": "SignalR-Timer",
   "BasePath": "_content/SignalR-Timer",
   "Mode": "Default",
@@ -148,6 +148,25 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\js\\site.js"
+    },
+    {
+      "Identity": "C:\\Users\\HBK\\Desktop\\Projects\\SignalR-Timer\\wwwroot\\js\\xxxxxx.js",
+      "SourceId": "SignalR-Timer",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\HBK\\Desktop\\Projects\\SignalR-Timer\\wwwroot\\",
+      "BasePath": "_content/SignalR-Timer",
+      "RelativePath": "js/xxxxxx.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\js\\xxxxxx.js"
     },
     {
       "Identity": "C:\\Users\\HBK\\Desktop\\Projects\\SignalR-Timer\\wwwroot\\sw.js",

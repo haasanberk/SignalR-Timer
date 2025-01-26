@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SignalR-Timer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cba07e48edac8f13d4983eb1cb4ed3f52aa2c222")]
 [assembly: System.Reflection.AssemblyProductAttribute("SignalR-Timer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SignalR-Timer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -28,3 +28,4 @@ C:\Users\HBK\Desktop\Projects\SignalR-Timer\obj\Debug\net8.0\refint\SignalR-Time
 C:\Users\HBK\Desktop\Projects\SignalR-Timer\obj\Debug\net8.0\SignalR-Timer.pdb
 C:\Users\HBK\Desktop\Projects\SignalR-Timer\obj\Debug\net8.0\SignalR-Timer.genruntimeconfig.cache
 C:\Users\HBK\Desktop\Projects\SignalR-Timer\obj\Debug\net8.0\ref\SignalR-Timer.dll
+C:\Users\HBK\Desktop\Projects\SignalR-Timer\obj\Debug\net8.0\SignalR-Timer.sourcelink.json

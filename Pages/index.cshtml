@@ -2,6 +2,7 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Timer";
+    var shouldConnect = true; // This is the parameter you want to pass
 }
 
 <style>
@@ -44,31 +45,40 @@
     }
 </style>
 
-<div class="container text-center">
-    @if (Model.EnableSignalR)
-    {
-        <div id="connectionStatus" class="connection-status">Connecting...</div>
-        <div id="randomName">Waiting for name...</div>
-    }
-    <div id="timer">@Model.InitialTime</div>
-    <input type="number" id="seconds" min="1" max="999" value="@Model.InitialTime">
+<div class="container text-center" data-should-connect="@shouldConnect">
+    <div id="connectionStatus" class="connection-status">Connecting...</div>
+    <div id="randomName">Waiting for name...</div>
+    <div id="timer">03:00</div>
+    <input type="number" id="seconds" min="1" max="999" value="180">
     <button id="startBtn">Start Timer</button>
     <button id="stopBtn">Stop Timer</button>
     <button id="resumeBtn">Resume Timer</button>
 </div>
 
 @section Scripts {
-    @if (Model.EnableSignalR)
-    {
-        <script src=@("https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js")></script>
-        <script src="~/js/signalRService.js"></script>
-    }
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
+    <script src="~/js/signalRService.js"></script>
     <script src="~/js/app.js"></script>
     <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(function(error) {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            const shouldConnect = container.dataset.shouldConnect === 'True';
+
+            if (shouldConnect) {
+                window.signalRService.initialize();
+            }
+
             const config = {
-                enableSignalR: @Json.Serialize(Model.EnableSignalR),
-                initialTime: @Model.InitialTime
+                initialTime: 180 // 180 seconds countdown
             };
 
             initializeApp(config);

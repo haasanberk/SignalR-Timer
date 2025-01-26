@@ -25,6 +25,10 @@
       "PackagePath": "staticwebassets\\js\\site.js"
     },
     {
+      "Id": "C:\\Users\\HBK\\Desktop\\Projects\\SignalR-Timer\\wwwroot\\js\\xxxxxx.js",
+      "PackagePath": "staticwebassets\\js\\xxxxxx.js"
+    },
+    {
       "Id": "C:\\Users\\HBK\\Desktop\\Projects\\SignalR-Timer\\wwwroot\\sw.js",
       "PackagePath": "staticwebassets\\sw.js"
     },

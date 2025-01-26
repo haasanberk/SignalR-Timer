@@ -1,67 +1,83 @@
 class SignalRService {
     constructor() {
         this.connection = null;
-        this.callbacks = {
-            onNameReceived: null,
-            onConnectionStatusChanged: null
-        };
+        this.callbacks = {};
         this.connectionState = 'disconnected';
         this._pendingMessages = new Set(); // Track pending messages
         this.disconnectReason = null;
         this.keepAliveInterval = null;
         this.lastKeepAlive = Date.now();
         this.isEnabled = true;
+        this.connectionTimeout = null;
+        this.oldConnectionId = null;
+        this.connectionStartTime = null; // Track when the connection was established
+        this.totalConnectionTime = 180000; // 180 seconds
+        this.retryInterval = null;
+        this.pendingNameRequest = false; // Track if a name request is pending
+        this.networkStatus = navigator.onLine; // Track network status
     }
 
     initialize() {
-        if (!this.isEnabled) {
-            console.log('SignalR is disabled');
+        if (this.connectionState === 'connected') {
+            console.log('Already connected');
             return;
         }
 
-        if (typeof signalR === 'undefined') {
-            console.error('SignalR library not loaded!');
-            return;
-        }
+        this.connection = new signalR.HubConnectionBuilder()
+            .withUrl("/randomNameHub", {
+                transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling
+            })
+            .configureLogging(signalR.LogLevel.Information)
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    // Retry every second, up to 10 times
+                    const maxRetries = 10;
+                    const delay = 1000; // 1 second
+                    return retryContext.previousRetryCount < maxRetries ? delay : null;
+                }
+            })
+            .build();
 
-        // Define connection only once
-        if (!this.connection) {
-            this.connection = new signalR.HubConnectionBuilder()
-                .withUrl("/randomNameHub", {
-                    transport: signalR.HttpTransportType.WebSockets | 
-                              signalR.HttpTransportType.ServerSentEvents | 
-                              signalR.HttpTransportType.LongPolling,
-                    skipNegotiation: false
-                })
-                .withAutomaticReconnect({
-                    nextRetryDelayInMilliseconds: retryContext => {
-                        if (retryContext.previousRetryCount === 0) {
-                            return 0;
-                        }
-                        if (retryContext.previousRetryCount < 10) {
-                            return 1000;
-                        }
-                        return 3000;
-                    }
-                })
-                .withKeepAliveInterval(15000)
-                .withServerTimeout(30000)
-                .configureLogging(signalR.LogLevel.Information)
-                .build();
+        this.connection.onreconnecting(error => {
+            console.log('Reconnecting...', error);
+            this.oldConnectionId = this.connection.connectionId;
+            this.updateConnectionStatus('Reconnecting...', 'warning');
+        });
 
-            this.setupConnectionHandlers();
-            this.setupMessageHandlers();
-            this.setupPageLifecycle();
-        }
+        this.connection.onreconnected(async connectionId => {
+            console.log('Reconnected:', connectionId);
+            await this.notifyReconnection(this.oldConnectionId, connectionId);
+            this.adjustConnectionTimeout(); // Adjust the timeout based on elapsed time
+            this.updateConnectionStatus('Connected', 'success');
+            if (this.pendingNameRequest) {
+                this.sendNewName(); // Retry sending the name if it was pending
+            }
+        });
 
-        // Start the connection
+        this.connection.onclose(async () => {
+            console.log('Connection closed. Attempting to reconnect...');
+            this.oldConnectionId = this.connection.connectionId;
+            this.updateConnectionStatus('Disconnected', 'error');
+            await this.startConnection();
+        });
+
+        this.connection.on("ReceiveNewName", (name) => {
+            console.log("Received new name:", name);
+            this.updateName(name);
+            this.pendingNameRequest = false; // Reset pending request flag
+        });
+
         this.startConnection();
 
         // Handle page visibility changes
         document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
-        // Handle online/offline events
-        window.addEventListener('online', () => this.handleOnlineStatus(true));
-        window.addEventListener('offline', () => this.handleOnlineStatus(false));
+
+        // Monitor network status
+        window.addEventListener('online', () => this.handleOnline());
+        window.addEventListener('offline', () => this.handleOffline());
+
+        // Start sending new names every 30 seconds
+        this.startNameSending();
     }
 
     setupConnectionHandlers() {
@@ -76,31 +92,12 @@ class SignalRService {
             this.connectionState = 'connected';
             this.disconnectReason = null;
             this.notifyConnectionStatus('Connected', 'success');
+            this.processPendingMessages();
         });
 
-        this.connection.onclose(error => {
-            console.log('SignalR connection closed', error);
-            this.connectionState = 'disconnected';
-            
-            if (error) {
-                // Connection error
-                this.disconnectReason = 'error';
-                this.notifyConnectionStatus('Connection Error', 'error');
-            } else if (!navigator.onLine) {
-                // Network offline
-                this.disconnectReason = 'offline';
-                this.notifyConnectionStatus('No Internet Connection', 'error');
-            } else if (document.visibilityState === 'hidden') {
-                // Tab/browser closed or in background
-                this.disconnectReason = 'hidden';
-                this.notifyConnectionStatus('Connection Closed', 'error');
-            } else {
-                // Other disconnection
-                this.disconnectReason = 'unknown';
-                this.notifyConnectionStatus('Connection Lost', 'error');
-            }
-
-            this.handleConnectionLoss();
+        this.connection.onclose(async () => {
+            console.log("Connection closed. Attempting to reconnect...");
+            await this.startConnection();
         });
     }
 
@@ -108,7 +105,6 @@ class SignalRService {
         this.connection.on("ReceiveNewName", (name) => {
             console.log("Received new name:", name);
             if (this.callbacks.onNameReceived) {
-                // Add message to pending if we're not connected
                 if (this.connectionState !== 'connected') {
                     this._pendingMessages.add(name);
                     return;
@@ -117,16 +113,19 @@ class SignalRService {
             }
         });
 
-        this.connection.on("Connected", (message) => {
-            console.log("Hub message:", message);
-            // Process any pending messages
-            this._pendingMessages.forEach(name => {
-                if (this.callbacks.onNameReceived) {
-                    this.callbacks.onNameReceived(name);
-                }
-            });
-            this._pendingMessages.clear();
+        this.connection.on("SpecialMessage", (message) => {
+            console.log("Received special message:", message);
+            this.cleanup(); // Close connection after receiving this message
         });
+    }
+
+    processPendingMessages() {
+        this._pendingMessages.forEach(name => {
+            if (this.callbacks.onNameReceived) {
+                this.callbacks.onNameReceived(name);
+            }
+        });
+        this._pendingMessages.clear();
     }
 
     setupPageLifecycle() {
@@ -198,9 +197,9 @@ class SignalRService {
             if (this.connectionState !== 'connected') {
                 this.startConnection();
             }
-        } else if (document.visibilityState === 'hidden') {
+        } else {
             console.log('Page hidden');
-            // Let SignalR handle keep-alive while hidden
+            // Optionally, you can pause certain activities or reduce resource usage
         }
     }
 
@@ -214,38 +213,81 @@ class SignalRService {
         }
     }
 
-    handleOnlineStatus(isOnline) {
-        console.log('Online status changed:', isOnline);
-        if (isOnline) {
+    handleOnline() {
+        console.log('Network is online');
+        if (this.connectionState !== 'connected') {
             this.startConnection();
-        } else {
-            this.connectionState = 'disconnected';
-            this.notifyConnectionStatus('No Internet Connection', 'error');
         }
     }
 
-    startConnection() {
-        if (!this.connection) {
-            console.error('Connection not initialized');
-            return;
-        }
+    handleOffline() {
+        console.log('Network is offline');
+        this.updateConnectionStatus('Offline', 'error');
+    }
 
-        this.notifyConnectionStatus('Connecting...', 'warning');
-        this.lastKeepAlive = Date.now();
-        
-        // Reuse existing connection object
-        this.connection.start()
-            .then(() => {
-                console.log("SignalR Connected");
-                this.connectionState = 'connected';
-                this.notifyConnectionStatus('Connected', 'success');
-            })
-            .catch(err => {
-                console.error("SignalR Connection Error: ", err);
-                this.connectionState = 'disconnected';
-                this.notifyConnectionStatus('Connection Failed', 'error');
-                this.handleConnectionLoss();
-            });
+    async startConnection() {
+        try {
+            await this.connection.start();
+            console.log('SignalR Connected');
+            this.connectionState = 'connected';
+            this.updateConnectionStatus('Connected', 'success');
+
+            this.connectionStartTime = Date.now();
+
+            const connectionId = await this.connection.invoke("NotifyConnectionEstablished");
+            console.log('Connection ID:', connectionId);
+
+            this.startConnectionTimeout();
+        } catch (err) {
+            console.error('Connection failed:', err);
+            this.connectionState = 'disconnected';
+            this.updateConnectionStatus('Connection Failed', 'error');
+            setTimeout(() => this.startConnection(), 2000); // Retry more frequently
+        }
+    }
+
+    adjustConnectionTimeout() {
+        const elapsedTime = Date.now() - this.connectionStartTime;
+        const remainingTime = this.totalConnectionTime - elapsedTime;
+
+        if (remainingTime > 0) {
+            if (this.connectionTimeout) {
+                clearTimeout(this.connectionTimeout);
+            }
+            this.connectionTimeout = setTimeout(() => {
+                console.log('Adjusted connection timeout reached, closing connection.');
+                this.cleanup();
+            }, remainingTime);
+        } else {
+            console.log('No remaining time, closing connection immediately.');
+            this.cleanup();
+        }
+    }
+
+    async notifyReconnection(oldConnectionId, newConnectionId) {
+        try {
+            await this.connection.invoke("NotifyReconnection", oldConnectionId, newConnectionId);
+            console.log(`Notified server of reconnection: old ID = ${oldConnectionId}, new ID = ${newConnectionId}`);
+        } catch (err) {
+            console.error('Error notifying reconnection:', err);
+        }
+    }
+
+    notifyDisconnection() {
+        if (this.connectionState === 'connected') {
+            this.connection.invoke("NotifyDisconnection", this.connection.connectionId)
+                .catch(err => console.error('Error notifying disconnection:', err));
+        }
+    }
+
+    startConnectionTimeout() {
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+        }
+        this.connectionTimeout = setTimeout(() => {
+            console.log('Connection timeout reached, closing connection.');
+            this.cleanup();
+        }, this.totalConnectionTime);
     }
 
     notifyConnectionStatus(status, type) {
@@ -268,10 +310,55 @@ class SignalRService {
             this.connection.stop();
             // Don't null out the connection - it can be reused
         }
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+        }
+        if (this.retryInterval) {
+            clearInterval(this.retryInterval);
+        }
+    }
+
+    startNameSending() {
+        this.retryInterval = setInterval(() => {
+            if (this.connectionState === 'connected') {
+                this.sendNewName();
+            }
+        }, 30000); // 30 seconds
+    }
+
+    async sendNewName() {
+        try {
+            this.pendingNameRequest = true; // Set pending request flag
+            await this.connection.invoke("SendNewName");
+        } catch (err) {
+            console.error('Error sending new name:', err);
+            this.pendingNameRequest = false; // Reset pending request flag if failed
+        }
+    }
+
+    updateImage(name) {
+        // Implement logic to update the image based on the new name
+        const imageElement = document.getElementById('imageElementId'); // Replace with your image element ID
+        if (imageElement) {
+            imageElement.src = `/images/${name}.png`; // Example: change image source
+        }
+    }
+
+    updateConnectionStatus(status, type) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (statusElement) {
+            statusElement.textContent = status;
+            statusElement.className = `connection-status ${type}`;
+        }
+    }
+
+    updateName(name) {
+        const nameElement = document.getElementById('randomName');
+        if (nameElement) {
+            nameElement.textContent = name;
+        }
     }
 }
 
-// Create global instance only if needed
-if (document.getElementById('connectionStatus')) {
-    window.signalRService = new SignalRService();
-} 
+// Create global instance
+window.signalRService = new SignalRService(); 

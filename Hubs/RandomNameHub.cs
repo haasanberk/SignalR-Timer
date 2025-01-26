@@ -1,210 +1,79 @@
 using Microsoft.AspNetCore.SignalR;
-using System.Timers;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace SignalR_Timer.Hubs;
 
 public class RandomNameHub : Hub
 {
-    private static readonly string[] Names = new[]
-    {
-        "Alice", "Bob", "Charlie", "David", "Eve", 
-        "Frank", "Grace", "Henry", "Ivy", "Jack"
-    };
-    private static readonly Random _random = new Random();
-    private readonly IHubContext<RandomNameHub> _hubContext;
-    private static System.Timers.Timer? _nameUpdateTimer;
-    private static readonly object _timerLock = new object();
-    private static readonly Queue<string> _pendingNames = new Queue<string>();
-    private static readonly Dictionary<string, DateTime> _activeConnections = new();
-    private const int CONNECTION_TIMEOUT_MINUTES = 5;
+    private static ConcurrentDictionary<string, string> activeConnections = new ConcurrentDictionary<string, string>();
 
-    public RandomNameHub(IHubContext<RandomNameHub> hubContext)
-    {
-        _hubContext = hubContext;
-    }
-
-    public override async Task OnConnectedAsync()
+    public Task<string> NotifyConnectionEstablished()
     {
         var connectionId = Context.ConnectionId;
-        string initialName;
-
-        lock (_timerLock)
-        {
-            _activeConnections[connectionId] = DateTime.UtcNow;
-            initialName = Names[_random.Next(Names.Length)];
-            
-            // Start timer when first client connects
-            if (_nameUpdateTimer == null)
-            {
-                StartNameUpdates();
-            }
-        }
-
-        await Clients.Caller.SendAsync("Connected", "Connection established");
-        await Clients.Caller.SendAsync("ReceiveNewName", initialName);
-        await SendPendingNamesAsync();
-        await base.OnConnectedAsync();
+        Console.WriteLine($"Connection established with ID: {connectionId}");
+        activeConnections[connectionId] = connectionId;
+        return Task.FromResult(connectionId);
     }
 
-    private void StartNameUpdates()
+    public Task NotifyDisconnection(string connectionId)
     {
-        lock (_timerLock)
-        {
-            if (_nameUpdateTimer == null)
-            {
-                _nameUpdateTimer = new System.Timers.Timer(10000); // 10 saniye
-                _nameUpdateTimer.Elapsed += async (sender, e) => await SendNewNameToClients();
-                _nameUpdateTimer.AutoReset = true; // Timer'ın sürekli çalışmasını sağlar
-                _nameUpdateTimer.Enabled = true; // Timer'ı aktif eder
-                _nameUpdateTimer.Start();
-            }
-        }
+        Console.WriteLine($"Connection lost for ID: {connectionId}");
+        activeConnections.TryRemove(connectionId, out _);
+        return Task.CompletedTask;
     }
 
-    private async Task SendNewNameToClients()
+    public Task NotifyReconnection(string oldConnectionId, string newConnectionId)
     {
-        string newName;
-        lock (_timerLock)
+        Console.WriteLine($"Reconnection: old ID = {oldConnectionId}, new ID = {newConnectionId}");
+        
+        if (!string.IsNullOrEmpty(oldConnectionId))
         {
-            newName = Names[_random.Next(Names.Length)];
-        }
-
-        try
-        {
-            await _hubContext.Clients.All.SendAsync("ReceiveNewName", newName);
-        }
-        catch
-        {
-            lock (_timerLock)
-            {
-                _pendingNames.Enqueue(newName);
-                while (_pendingNames.Count > 10)
-                {
-                    _pendingNames.Dequeue();
-                }
-            }
-        }
-    }
-
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        var connectionId = Context.ConnectionId;
-        bool isTimeout = false;
-        DateTime lastSeen;
-
-        lock (_timerLock)
-        {
-            if (_activeConnections.TryGetValue(connectionId, out lastSeen))
-            {
-                isTimeout = (DateTime.UtcNow - lastSeen).TotalMinutes > CONNECTION_TIMEOUT_MINUTES;
-                _activeConnections.Remove(connectionId);
-            }
-        }
-
-        if (exception != null)
-        {
-            Console.WriteLine($"Client disconnected with error: {exception.Message}");
-            await HandleErrorDisconnectionAsync(connectionId, exception);
-        }
-        else if (isTimeout)
-        {
-            Console.WriteLine($"Client connection timed out: {connectionId}");
-            await HandleTimeoutDisconnectionAsync(connectionId);
-        }
-        else
-        {
-            Console.WriteLine($"Client disconnected normally: {connectionId}");
-            await HandleNormalDisconnectionAsync(connectionId);
+            activeConnections.TryRemove(oldConnectionId, out _);
         }
         
-        await base.OnDisconnectedAsync(exception);
-    }
-
-    private Task HandleErrorDisconnectionAsync(string connectionId, Exception exception)
-    {
-        // Handle error disconnections (network issues, crashes)
+        activeConnections[newConnectionId] = newConnectionId;
         return Task.CompletedTask;
     }
 
-    private Task HandleTimeoutDisconnectionAsync(string connectionId)
+    public async Task SendNewName()
     {
-        // Handle timeout disconnections
-        return Task.CompletedTask;
-    }
+        var newName = GenerateRandomName();
+        Console.WriteLine($"Attempting to send new name: {newName}");
 
-    private Task HandleNormalDisconnectionAsync(string connectionId)
-    {
-        // Handle normal disconnections (browser/tab closed)
-        return Task.CompletedTask;
-    }
-
-    private async Task SendPendingNamesAsync()
-    {
-        List<string> namesToSend;
-        lock (_timerLock)
-        {
-            namesToSend = _pendingNames.ToList();
-            _pendingNames.Clear();
-        }
-
-        foreach (var name in namesToSend)
+        foreach (var connectionId in activeConnections.Keys)
         {
             try
             {
-                await Clients.All.SendAsync("ReceiveNewName", name);
-            }
-            catch
-            {
-                lock (_timerLock)
+                var client = Clients.Client(connectionId);
+                if (client != null)
                 {
-                    _pendingNames.Enqueue(name);
+                    await client.SendAsync("ReceiveNewName", newName);
+                    Console.WriteLine($"Sent name: {newName} to connection ID: {connectionId}");
                 }
-                break;
+                else
+                {
+                    Console.WriteLine($"Connection ID: {connectionId} is no longer valid, removing from active connections.");
+                    activeConnections.TryRemove(connectionId, out _);
+                }
             }
-        }
-    }
-
-    private void StartConnectionHealthCheck()
-    {
-        var timer = new System.Timers.Timer(60000);
-        timer.Elapsed += async (sender, e) => await CheckConnectionHealthAsync();
-        timer.Start();
-    }
-
-    private async Task CheckConnectionHealthAsync()
-    {
-        List<string> timedOutConnections;
-        var now = DateTime.UtcNow;
-
-        lock (_timerLock)
-        {
-            timedOutConnections = _activeConnections
-                .Where(c => (now - c.Value).TotalMinutes > CONNECTION_TIMEOUT_MINUTES)
-                .Select(c => c.Key)
-                .ToList();
-
-            foreach (var connectionId in timedOutConnections)
+            catch (Exception ex)
             {
-                _activeConnections.Remove(connectionId);
+                Console.WriteLine($"Failed to send name: {newName} to connection ID: {connectionId}. Error: {ex.Message}");
             }
-        }
-
-        foreach (var connectionId in timedOutConnections)
-        {
-            await HandleTimeoutDisconnectionAsync(connectionId);
         }
     }
 
-    public static void StopNameUpdates()
+    private string GenerateRandomName()
     {
-        lock (_timerLock)
-        {
-            if (_nameUpdateTimer != null)
-            {
-                _nameUpdateTimer.Stop();
-                _nameUpdateTimer.Dispose();
-                _nameUpdateTimer = null;
-            }
-        }
+        var names = new[] { "Alice", "Bob", "Charlie", "Diana" };
+        var random = new Random();
+        return names[random.Next(names.Length)];
+    }
+
+    public static Task StopNameUpdates()
+    {
+        Console.WriteLine("Stopping name updates.");
+        return Task.CompletedTask;
     }
 } 
